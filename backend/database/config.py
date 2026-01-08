@@ -11,6 +11,6 @@ class Settings(BaseSettings):
     def database(self):
         return f'postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}'
 
-    model_config = SettingsConfigDict(env_file='/Users/n1zel1x/PycharmProjects/PythonProject/uncompleted_projects/hh_project/backend/.env')
+    model_config = SettingsConfigDict(env_file='/Users/n1zel1x/PycharmProjects/PythonProject/completed_projects/hh_project/backend/.env')
 
 settings = Settings()

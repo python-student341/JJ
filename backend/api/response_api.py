@@ -92,7 +92,7 @@ async def get_responses(vacancy_id: int, session: session_dep, user_id: int = De
     return all_resumes
 
 
-@router.put('/response/set_status/{response_id}')
+@router.put('/response/set_status/{response_id}', tags=['Response'])
 async def set_status(response_id: int, data: SetStatusSchema, session: session_dep, user_id: int = Depends(get_user_token)):
 
     query = await session.execute(select(UserModel).where(UserModel.id == user_id))

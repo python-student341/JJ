@@ -3,7 +3,7 @@ from sqlalchemy import select, func
 
 
 from backend.database.database import session_dep
-from backend.dependencies import check_admin
+from backend.dependencies import check_admin, check_user, check_vacancy, check_resume
 from backend.models.models import UserModel, Role, VacancyModel, ResumeModel, ResponseModel
 from backend.schemas.admin_schema import EditUserNameByAdmin, UpdateUserRole
 from backend.schemas.vacancy_schema import EditVacancySchema
@@ -29,15 +29,9 @@ async def get_users(session: session_dep, limit: int = 10, offset: int = 0, admi
 
 
 @router.put('/admin/edit_user_name/{user_id}', tags=['Admin'])
-async def edit_user_name(user_id: int, data: EditUserNameByAdmin, session: session_dep, admin: int = Depends(check_admin)):
-    
-    query_user = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query_user.scalar_one_or_none()
+async def edit_user_name(data: EditUserNameByAdmin, session: session_dep, current_user: UserModel = Depends(check_user), admin: int = Depends(check_admin)):
 
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
-
-    if user_id == admin.id:
+    if current_user.id == admin.id:
         raise HTTPException(status_code=403, detail='You can not edit your own admin account')
 
     if current_user.role == Role.admin:
@@ -52,13 +46,7 @@ async def edit_user_name(user_id: int, data: EditUserNameByAdmin, session: sessi
 
 
 @router.put('/admin/update_user_role/{user_id}', tags=['Admin'])
-async def update_user_role(user_id: int, session: session_dep, data: UpdateUserRole, admin: int = Depends(check_admin)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
+async def update_user_role(session: session_dep, data: UpdateUserRole, current_user: UserModel = Depends(check_user), admin: int = Depends(check_admin)):
 
     if current_user.id == admin.id:
         raise HTTPException(status_code=403, detail='You can not update your own role')
@@ -72,15 +60,9 @@ async def update_user_role(user_id: int, session: session_dep, data: UpdateUserR
 
 
 @router.delete('/admin/delete_user/{user_id}', tags=['Admin'])
-async def delete_user(user_id: int, session: session_dep, admin: int = Depends(check_admin)):
+async def delete_user(session: session_dep, current_user: UserModel = Depends(check_user), admin: int = Depends(check_admin)):
 
-    query_user = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query_user.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
-
-    if user_id == admin.id:
+    if current_user.id == admin.id:
         raise HTTPException(status_code=403, detail='You can not delete your own admin account')
 
     if current_user.role == Role.admin:
@@ -94,13 +76,7 @@ async def delete_user(user_id: int, session: session_dep, admin: int = Depends(c
 
 #-------------Work with vacancy-------------
 @router.put('/admin/edit_vacancy/{vacancy_id}', tags=['Admin'])
-async def edit_vacancy(vacancy_id: int, session: session_dep, data: EditVacancySchema = Depends(), admin: int = Depends(check_admin)):
-
-    query_vacancy = await session.execute(select(VacancyModel).where(VacancyModel.id == vacancy_id))
-    current_vacancy = query_vacancy.scalar_one_or_none()
-
-    if not current_vacancy:
-        raise HTTPException(status_code=404, detail='Vacancy not found')
+async def edit_vacancy(session: session_dep, current_vacancy: VacancyModel = Depends(check_vacancy), data: EditVacancySchema = Depends(), admin: int = Depends(check_admin)):
 
     if data.new_title:
         current_vacancy.title = data.new_title
@@ -132,13 +108,7 @@ async def get_vacancies(session: session_dep, limit: int = 10, offset: int = 0, 
 
 
 @router.delete('/admin/delete_vacancy/{vacancy_id}', tags=['Admin'])
-async def delete_vacancy(vacancy_id: int, session: session_dep, admin: int = Depends(check_admin)):
-
-    query_vacancy = await session.execute(select(VacancyModel).where(VacancyModel.id == vacancy_id))
-    current_vacancy = query_vacancy.scalar_one_or_none()
-
-    if not current_vacancy:
-        raise HTTPException(status_code=404, detail='Vacancy not found')
+async def delete_vacancy(session: session_dep, current_vacancy: VacancyModel = Depends(check_vacancy), admin: int = Depends(check_admin)):
 
     await session.delete(current_vacancy)
     await session.commit()
@@ -148,13 +118,7 @@ async def delete_vacancy(vacancy_id: int, session: session_dep, admin: int = Dep
 
 #-------------Work with resume-------------
 @router.put('/admin/edit_resume/{resume_id}', tags=['Admin'])
-async def edit_resume(resume_id: int, session: session_dep, data: EditResumeSchema = Depends(), admin: int = Depends(check_admin)):
-
-    query = await session.execute(select(ResumeModel).where(ResumeModel.id == resume_id))
-    current_resume = query.scalar_one_or_none()
-
-    if not current_resume:
-        raise HTTPException(status_code=404, detail='Resume not found')
+async def edit_resume(session: session_dep, current_resume: ResumeModel = Depends(check_resume), data: EditResumeSchema = Depends(), admin: int = Depends(check_admin)):
 
     if data.new_title:
         current_resume.title = data.new_title
@@ -189,13 +153,7 @@ async def get_resumes(session: session_dep, limit: int = 10, offset: int = 0, ad
 
 
 @router.delete('/admin/delete_resume/{resume_id}', tags=['Admin'])
-async def delete_resume(resume_id: int, session: session_dep, admin: int = Depends(check_admin)):
-    
-    query = await session.execute(select(ResumeModel).where(ResumeModel.id == resume_id))
-    current_resume = query.scalar_one_or_none()
-
-    if not current_resume:
-        raise HTTPException(status_code=404, detail='Resume not found')
+async def delete_resume(session: session_dep, current_resume: ResumeModel = Depends(check_resume), admin: int = Depends(check_admin)):
 
     await session.delete(current_resume)
     await session.commit()

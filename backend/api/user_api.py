@@ -5,7 +5,7 @@ from backend.database.database import session_dep
 from backend.database.hash import hashing_password, pwd_context, security, config
 from backend.models.models import UserModel
 from backend.schemas.user_schema import CreateUserSchema, LoginUserSchema, EditUserPasswordSchema, EditUserNameSchema, DeleteUserSchema
-from backend.dependencies import get_user_token
+from backend.dependencies import get_user_token, check_user
 
 
 router = APIRouter()
@@ -57,13 +57,7 @@ async def sign_in(data: LoginUserSchema, session: session_dep, response: Respons
 
 
 @router.get('/user/get_info', tags=['Users'])
-async def get_info(session: session_dep, user_id: int = Depends(get_user_token)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
+async def get_info(session: session_dep, current_user: int = Depends(check_user)):
 
     return {'success': True, 'info': {'id': current_user.id,
                                       'email': current_user.email,
@@ -72,13 +66,7 @@ async def get_info(session: session_dep, user_id: int = Depends(get_user_token))
 
 
 @router.put('/user/edit_password', tags=['Users'])
-async def edit_password(data: EditUserPasswordSchema, session: session_dep, user_id: int = Depends(get_user_token)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
+async def edit_password(data: EditUserPasswordSchema, session: session_dep, current_user: int = Depends(check_user)):
 
     if not pwd_context.verify(data.old_password, current_user.password):
         raise HTTPException(status_code=400, detail='Incorrect password')
@@ -95,10 +83,7 @@ async def edit_password(data: EditUserPasswordSchema, session: session_dep, user
 
 
 @router.put('/user/edit_name', tags=['Users'])
-async def edit_name(data: EditUserNameSchema, session: session_dep, user_id: int = Depends(get_user_token)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
+async def edit_name(data: EditUserNameSchema, session: session_dep, current_user: int = Depends(check_user)):
 
     if not pwd_context.verify(data.password, current_user.password):
         raise HTTPException(status_code=400, detail='Incorrect password')
@@ -112,10 +97,7 @@ async def edit_name(data: EditUserNameSchema, session: session_dep, user_id: int
 
 
 @router.delete('/user/delete_user', tags=['Users'])
-async def delete_user(data: DeleteUserSchema, session: session_dep, user_id: int = Depends(get_user_token)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
+async def delete_user(data: DeleteUserSchema, session: session_dep, current_user: int = Depends(check_user)):
 
     if not pwd_context.verify(data.password, current_user.password):
         raise HTTPException(status_code=400, detail='Incorrect password')

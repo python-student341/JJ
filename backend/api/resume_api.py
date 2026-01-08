@@ -1,35 +1,24 @@
-from fastapi import APIRouter, Body, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy import select
 
 from backend.models.models import UserModel, ResumeModel, Role
-from backend.database.hash import security
 from backend.database.database import session_dep
 from backend.schemas.resume_schema import CreateResumeSchema, EditResumeSchema
-from backend.dependencies import get_user_token
+from backend.dependencies import check_user, check_resume
 
 
 router = APIRouter()
 
 
 @router.post('/resume/create_resume', tags=['Resume'])
-async def create_resume(data: CreateResumeSchema, session: session_dep, user_id: int = Depends(get_user_token)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
+async def create_resume(data: CreateResumeSchema, session: session_dep, current_user: UserModel = Depends(check_user)):
 
     if current_user.role != Role.applicant:
         raise HTTPException(status_code=403, detail='Only applicant can make resumes')
 
-    new_resume = ResumeModel(
-        applicant_id = current_user.id,
-        title = data.title,
-        about = data.about,
-        city = data.city,
-        stack = data.stack
-    )
+    new_resume = ResumeModel(**data.model_dump())
+
+    new_resume.applicant_id = current_user.id
 
     session.add(new_resume)
     await session.commit()
@@ -38,37 +27,19 @@ async def create_resume(data: CreateResumeSchema, session: session_dep, user_id:
 
 
 @router.get('/resume/get_all_my_resumes', tags=['Resume'])
-async def get_all_resumes(session: session_dep, user_id: int = Depends(get_user_token)):
+async def get_all_resumes(session: session_dep, current_user: UserModel = Depends(check_user)):
 
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
-
-    resume_query = await session.execute(select(ResumeModel).where(ResumeModel.applicant_id == user_id))
+    resume_query = await session.execute(select(ResumeModel).where(ResumeModel.applicant_id == current_user.id))
     all_resumes = resume_query.scalars().all()
 
     return {'success': True, 'Your resumes': all_resumes}
 
 
 @router.put('/resume/edit_resume/{resume_id}', tags=['Resume'])
-async def edit_resume(resume_id: int, session: session_dep, data: EditResumeSchema = Depends(), user_id: int = Depends(get_user_token)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
+async def edit_resume(session: session_dep, current_resume: ResumeModel = Depends(check_resume), data: EditResumeSchema = Depends(), current_user: UserModel = Depends(check_user)):
 
     if current_user.role != Role.applicant:
         raise HTTPException(status_code=403, detail='Only applicant can edit resume')
-
-    query_resume = await session.execute(select(ResumeModel).where(ResumeModel.id == resume_id))
-    current_resume = query_resume.scalar_one_or_none()
-
-    if not current_resume:
-        raise HTTPException(status_code=404, detail='Resume not found')
 
     if current_user.id != current_resume.applicant_id:
         raise HTTPException(status_code=403, detail="It's not your resume")
@@ -92,22 +63,10 @@ async def edit_resume(resume_id: int, session: session_dep, data: EditResumeSche
 
 
 @router.delete('/resume/delete_resume/{resume_id}', tags=['Resume'])
-async def delete_resume(resume_id: int, session: session_dep, user_id: int = Depends(get_user_token)):
-
-    query = await session.execute(select(UserModel).where(UserModel.id == user_id))
-    current_user = query.scalar_one_or_none()
-
-    if not current_user:
-        raise HTTPException(status_code=404, detail='User not found')
+async def delete_resume(session: session_dep, current_resume: ResumeModel = Depends(check_resume), current_user: UserModel = Depends(check_user)):
 
     if current_user.role != Role.applicant:
         raise HTTPException(status_code=403, detail='Only applicant can edit resumes')
-
-    resume_query = await session.execute(select(ResumeModel).where(ResumeModel.id == resume_id))
-    current_resume = resume_query.scalar_one_or_none()
-
-    if not current_resume:
-        raise HTTPException(status_code=404, detail='Resume not found')
 
     if current_user.id != current_resume.applicant_id:
         raise HTTPException(status_code=403, detail='This is not your resume')
